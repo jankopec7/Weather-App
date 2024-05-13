@@ -2,9 +2,12 @@ package com.example.codibly.service;
 
 import com.example.codibly.model.Dto.OpenMeteoResponse;
 import com.example.codibly.model.Dto.WeatherResponse;
-
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 public class WeatherService {
 
@@ -18,22 +21,28 @@ public class WeatherService {
         this.restTemplate = restTemplate;
     }
 
-    public WeatherResponse getWeatherData(double latitude, double longitude) {
+    public List<WeatherResponse> getWeatherData(double latitude, double longitude) {
         OpenMeteoResponse response = restTemplate.getForObject(OPEN_METEO_API_URL, OpenMeteoResponse.class, latitude, longitude);
 
+        List<WeatherResponse> weatherResponses = new ArrayList<>();
 
-        WeatherResponse weatherResponse = new WeatherResponse();
-        weatherResponse.setDate(response.getDaily().getTime().get(0)); // get the first daily time
-        weatherResponse.setWeatherCode(response.getDaily().getWeather_code().get(0)); // get the first daily weather code
-        weatherResponse.setMinTemp(response.getDaily().getTemperature_2m_min().get(0)); // get the first daily min temperature
-        weatherResponse.setMaxTemp(response.getDaily().getTemperature_2m_max().get(0)); // get the first daily max temperature
-        weatherResponse.setEnergyProduced(calculateEnergy(response.getDaily().getSunshine_duration().get(0))); // calculate energy produced
+        for (int i = 0; i < response.getDaily().getTime().size(); i++) {
+            WeatherResponse weatherResponse = new WeatherResponse();
+            weatherResponse.setDate(response.getDaily().getTime().get(i));
+            weatherResponse.setWeatherCode(response.getDaily().getWeather_code().get(i));
+            weatherResponse.setMinTemp(response.getDaily().getTemperature_2m_min().get(i));
+            weatherResponse.setMaxTemp(response.getDaily().getTemperature_2m_max().get(i));
+            weatherResponse.setEnergyProduced(calculateEnergy(response.getDaily().getSunshine_duration().get(i)));
 
+            weatherResponses.add(weatherResponse);
+        }
 
-        return weatherResponse;
+        return weatherResponses;
     }
 
     private double calculateEnergy(double sunshineDuration) {
-        return INSTALLATION_POWER * (sunshineDuration / 3600) * PANEL_EFFICIENCY; // convert sunshineDuration from seconds to hours
+        double energy = INSTALLATION_POWER * (sunshineDuration / 3600) * PANEL_EFFICIENCY;
+        energy = Math.round(energy * 100.0) / 100.0; // round to 2 decimal places
+        return energy;
     }
 }
